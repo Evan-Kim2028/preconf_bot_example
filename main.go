@@ -87,9 +87,8 @@ func main() {
 		Usage: "A tool for bidding in mev-commit preconfirmation auctions for blobs and transactions.",
 		Action: func(c *cli.Context) error {
 			fmt.Println("-----------------------------------------------------------------------------------------------")
-			fmt.Println("Welcome to Preconf Bidder!")
+			fmt.Println("Welcome to Preconf Bidder - a quickstart CLI tool to make preconf bids on mev-commit chain.")
 			fmt.Println("")
-			fmt.Println("This is a quickstart tool to make preconf bids on mev-commit chain.")
 			fmt.Println("")
 			fmt.Println("If you already know what you're doing, you can skip the prompts by providing flags upfront.")
 			fmt.Println("For example:")
