@@ -15,6 +15,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	ee "github.com/primev/preconf_blob_bidder/internal/eth"
+	"github.com/primev/preconf_blob_bidder/internal/logging" // Import the logging package
+
+	// Example of service package
 	bb "github.com/primev/preconf_blob_bidder/internal/mevcommit"
 	"github.com/urfave/cli/v2"
 )
@@ -32,6 +35,7 @@ const (
 	FlagNumBlob                   = "num-blob"
 	FlagDefaultTimeout            = "default-timeout"
 	FlagRunDurationMinutes        = "run-duration-minutes"
+	FlagPrettyLog                 = "pretty" // New flag
 )
 
 func promptForInput(prompt string) string {
@@ -76,16 +80,17 @@ func validatePrivateKey(input string) error {
 }
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-		Level:     slog.LevelInfo,
-		AddSource: true,
-	}))
-	slog.SetDefault(logger)
-
 	app := &cli.App{
 		Name:  "Preconf Bidder",
 		Usage: "A tool for bidding in mev-commit preconfirmation auctions for blobs and transactions.",
 		Action: func(c *cli.Context) error {
+			// Initialize Logger after parsing flags
+			pretty := c.Bool(FlagPrettyLog)
+			logger := logging.InitializeLogger(pretty) // Use the logging package
+			slog.SetDefault(logger)
+
+			logger.Info("Starting Preconf Bidder CLI")
+
 			fmt.Println("-----------------------------------------------------------------------------------------------")
 			fmt.Println("Welcome to Preconf Bidder - a quickstart CLI tool to make preconf bids on mev-commit chain.")
 			fmt.Println("")
@@ -95,21 +100,22 @@ func main() {
 			fmt.Println("  ./biddercli --private-key <your_64_char_hex_key> --ws-endpoint wss://your-node.com/ws")
 			fmt.Println("")
 			fmt.Println("Available flags include:")
-			fmt.Println("  --private-key        Your private key for signing transactions (64 hex chars)")
-			fmt.Println("  --ws-endpoint        The WebSocket endpoint for your Ethereum node")
-			fmt.Println("  --rpc-endpoint       The RPC endpoint if not using payload")
-			fmt.Println("  --bid-amount         The amount to bid (in ETH), default 0.001")
-			fmt.Println("  --bid-amount-std-dev-percentage  Std dev percentage of bid amount, default 100.0")
-			fmt.Println("  --num-blob           Number of blob transactions to send, default 0 makes the tx an eth transfer")
-			fmt.Println("  --default-timeout     Default timeout in seconds, default 15")
-			fmt.Println("  --run-duration-minutes  Duration to run the bidder in minutes (0 for infinite)")
+			fmt.Println("  --private-key        				Your private key for signing transactions (64 hex chars)")
+			fmt.Println("  --ws-endpoint        				The WebSocket endpoint for your Ethereum node")
+			fmt.Println("  --rpc-endpoint        				The RPC endpoint if not using payload")
+			fmt.Println("  --bid-amount          				The amount to bid (in ETH), default 0.001")
+			fmt.Println("  --bid-amount-std-dev-percentage  	Std dev percentage of bid amount, default 100.0")
+			fmt.Println("  --num-blob           			 	Number of blob transactions to send, default 0 makes the tx an eth transfer")
+			fmt.Println("  --default-timeout        		 	Default timeout in seconds, default 15")
+			fmt.Println("  --run-duration-minutes   			Duration to run the bidder in minutes (0 for infinite)")
+			fmt.Println("  --pretty                 			Toggle between colored/formatted CLI logging vs JSON logging")
 			fmt.Println("")
 			fmt.Println("You can also set environment variables like WS_ENDPOINT and PRIVATE_KEY.")
 			fmt.Println("For more details, check the documentation: https://docs.primev.xyz/get-started/bidders/best-practices")
 			fmt.Println("-----------------------------------------------------------------------------------------------")
 			fmt.Println()
-			
 
+			// Retrieve flags and environment variables
 			wsEndpoint := c.String(FlagWsEndpoint)
 			privateKeyHex := c.String(FlagPrivateKey)
 
@@ -146,7 +152,6 @@ func main() {
 				fmt.Println()
 			}
 
-			
 			bidderAddress := c.String(FlagBidderAddress)
 			usePayload := c.Bool(FlagUsePayload)
 			rpcEndpoint := c.String(FlagRpcEndpoint)
@@ -165,7 +170,6 @@ func main() {
 				slog.Info("Bidder will run indefinitely")
 			}
 
-			
 			fmt.Println("Great! Here's what we have:")
 			fmt.Printf(" - WebSocket Endpoint: %s\n", wsEndpoint)
 			fmt.Printf(" - Private Key: Provided (hidden)\n")
@@ -185,7 +189,6 @@ func main() {
 			fmt.Println("Please wait...")
 			fmt.Println()
 
-			
 			slog.Info("Configuration values",
 				"bidderAddress", bidderAddress,
 				"rpcEndpoint", bb.MaskEndpoint(rpcEndpoint),
@@ -213,7 +216,6 @@ func main() {
 
 			timeout := defaultTimeout
 
-			
 			var rpcClient *ethclient.Client
 			if !usePayload {
 				rpcClient = bb.ConnectRPCClientWithRetries(rpcEndpoint, 5, timeout)
@@ -226,7 +228,6 @@ func main() {
 				}
 			}
 
-			
 			wsClient, err := bb.ConnectWSClient(wsEndpoint)
 			if err != nil {
 				slog.Error("Failed to connect to WebSocket client", "error", err)
@@ -243,7 +244,6 @@ func main() {
 				return fmt.Errorf("failed to subscribe to new blocks: %w", err)
 			}
 
-			
 			authAcct, err := bb.AuthenticateAddress(privateKeyHex, wsClient)
 			if err != nil {
 				slog.Error("Failed to authenticate private key", "error", err)
@@ -387,6 +387,12 @@ func main() {
 				Usage:   "Duration to run the bidder in minutes (0 for infinite)",
 				EnvVars: []string{"RUN_DURATION_MINUTES"},
 				Value:   0,
+			},
+			&cli.BoolFlag{
+				Name:    FlagPrettyLog,
+				Usage:   "Toggle between colored/formatted CLI logging vs JSON logging",
+				EnvVars: []string{"PRETTY_LOG"},
+				Value:   true, // Default is pretty logging for cli
 			},
 		},
 	}
